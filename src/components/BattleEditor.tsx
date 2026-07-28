@@ -21,8 +21,8 @@ function emptyForm(): BattleCampaign {
     id: '',
     name: '',
     nameEn: '',
-    startDate: '1951-',
-    endDate: '1951-',
+    startDate: '',
+    endDate: '',
     coordinates: { lat: 38.5, lng: 127.5 },
     location: '',
     result: 'victory',
@@ -89,8 +89,8 @@ export default function BattleEditor({
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = '请输入战役名称';
-    if (!form.startDate) e.startDate = '请选择开始日期';
-    if (!form.endDate) e.endDate = '请选择结束日期';
+    if (!form.startDate || form.startDate.length < 10) e.startDate = '请选择开始日期';
+    if (!form.endDate || form.endDate.length < 10) e.endDate = '请选择结束日期';
     if (form.startDate && form.endDate && form.startDate > form.endDate) {
       e.endDate = '结束日期不能早于开始日期';
     }
@@ -104,6 +104,15 @@ export default function BattleEditor({
     if (!form.resultSummary.trim()) e.resultSummary = '请输入战果简述';
     if (!form.diaryEntry.trim()) e.diaryEntry = '请输入日记内容';
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      // 自动滚动到第一个错误消息
+      setTimeout(() => {
+        const firstErr = document.querySelector<HTMLElement>(
+          `.battle-editor-form [style*="color: var(--color-crimson-bright)"]`,
+        );
+        firstErr?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -215,7 +224,7 @@ export default function BattleEditor({
         </div>
 
         {/* 表单 */}
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4">
+        <div className="battle-editor-form max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4">
           {/* 战役名称 */}
           <div>
             <label className={labelCls} style={labelStyle}>战役名称 *</label>

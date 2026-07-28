@@ -11,26 +11,48 @@ import AnniversaryBanner from './components/AnniversaryBanner';
 import CampaignCalendar from './components/CampaignCalendar';
 
 // ============================================================
-// localStorage 读写
+// localStorage 读写（含版本自动迁移）
 // ============================================================
 const STORAGE_KEY = 'kmyc-battles';
+const VERSION_KEY = 'kmyc-data-version';
+
+/** bump 此版本号即可触发所有用户自动合并最新 mock 数据 */
+const DATA_VERSION = 2;
 
 function loadBattles(): BattleCampaign[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
+    const storedVersion = Number(localStorage.getItem(VERSION_KEY)) || 0;
+
+    if (raw && storedVersion === DATA_VERSION) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
+
+    // 版本不匹配 → 智能合并：保留用户自定义 + 更新 mock 数据
+    if (raw && storedVersion < DATA_VERSION) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const mockIds = new Set(mockBattles.map((b) => b.id));
+        // 保留用户自建的战役（ID 不在 mock 中）
+        const userBattles = parsed.filter((b: BattleCampaign) => !mockIds.has(b.id));
+        // mock 条目以最新代码为准，用户条目追加在后面
+        const merged = [...mockBattles, ...userBattles];
+        saveBattles(merged, DATA_VERSION);
+        return merged;
+      }
+    }
   } catch { /* ignore */ }
-  // 首次使用 → 存入默认数据
-  saveBattles(mockBattles);
+
+  // 首次使用 / 数据损坏 → 写入最新数据
+  saveBattles(mockBattles, DATA_VERSION);
   return mockBattles;
 }
 
-function saveBattles(battles: BattleCampaign[]) {
+function saveBattles(battles: BattleCampaign[], version = DATA_VERSION) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(battles));
+    localStorage.setItem(VERSION_KEY, String(version));
   } catch { /* quota exceeded etc. */ }
 }
 
@@ -131,9 +153,10 @@ function App() {
 
     const updated: BattleCampaign[] =
       existingIdx >= 0
-        ? Object.assign([...battles], { [existingIdx]: battle }) // 编辑
-        : [...battles, battle]; // 新增
+        ? battles.map((b, i) => (i === existingIdx ? battle : b))
+        : [...battles, battle];
 
+    console.log('[保存]', existingIdx >= 0 ? '编辑' : '新增', battle.id, '总数:', updated.length);
     persist(updated);
     setShowEditor(false);
     setEditingBattle(null);
