@@ -74,6 +74,9 @@ export function useAnniversary(battles: BattleCampaign[]) {
         }
       }
     }
+    console.log(
+      `[纪念日] today=${today.month}-${today.day} | matched=${results.length} | battles=${battles.length}`,
+    );
     return results;
   }, [battles, today]);
 
