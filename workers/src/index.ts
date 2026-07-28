@@ -1,6 +1,6 @@
 // ============================================================
 // Cloudflare Worker — 抗美援朝战役日记 API
-// 使用 KV 存储战役数据，支持多端同步
+// KV 存储格式: { battles: BattleCampaign[], updatedAt: number }
 // ============================================================
 
 interface BattleCampaign {
@@ -19,6 +19,11 @@ interface BattleCampaign {
   imageUrl?: string;
 }
 
+interface StoreData {
+  battles: BattleCampaign[];
+  updatedAt: number;
+}
+
 interface Env {
   KMYC_BATTLES: KVNamespace;
 }
@@ -26,78 +31,88 @@ interface Env {
 const KV_KEY = 'battles';
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Content-Type': 'application/json',
 };
 
-// ============================================================
-// 从 KV 读取全部战役
-// ============================================================
-async function getBattles(env: Env): Promise<BattleCampaign[]> {
+async function getStore(env: Env): Promise<StoreData> {
   const raw = await env.KMYC_BATTLES.get(KV_KEY);
-  if (!raw) return [];
+  if (!raw) return { battles: [], updatedAt: 0 };
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    // 兼容旧格式（裸数组）
+    if (Array.isArray(parsed)) {
+      return { battles: parsed, updatedAt: 0 };
+    }
+    return parsed;
   } catch {
-    return [];
+    return { battles: [], updatedAt: 0 };
   }
 }
 
-// ============================================================
-// 写入全部战役到 KV
-// ============================================================
-async function putBattles(env: Env, battles: BattleCampaign[]): Promise<void> {
-  await env.KMYC_BATTLES.put(KV_KEY, JSON.stringify(battles));
+async function putStore(env: Env, data: StoreData): Promise<void> {
+  await env.KMYC_BATTLES.put(KV_KEY, JSON.stringify(data));
 }
 
-// ============================================================
-// Worker 入口
-// ============================================================
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // CORS 预检
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
 
-    // ---- GET /api/battles → 获取全部战役 ----
+    // ---- GET /api/battles → 获取全部（含时间戳） ----
     if (request.method === 'GET' && url.pathname === '/api/battles') {
-      const battles = await getBattles(env);
-      return new Response(JSON.stringify({ battles, count: battles.length }), {
-        headers: CORS_HEADERS,
-      });
+      const store = await getStore(env);
+      return new Response(
+        JSON.stringify({ battles: store.battles, updatedAt: store.updatedAt, count: store.battles.length }),
+        { headers: CORS_HEADERS },
+      );
     }
 
-    // ---- PUT /api/battles → 全量替换（同步） ----
+    // ---- PUT /api/battles → 条件写入（只有客户端时间戳 ≥ 服务器时才写） ----
     if (request.method === 'PUT' && url.pathname === '/api/battles') {
       try {
-        const body = (await request.json()) as { battles: BattleCampaign[] };
+        const body = (await request.json()) as { battles: BattleCampaign[]; updatedAt: number };
         if (!Array.isArray(body.battles)) {
           return new Response(JSON.stringify({ error: 'Invalid payload' }), {
-            status: 400,
-            headers: CORS_HEADERS,
+            status: 400, headers: CORS_HEADERS,
           });
         }
-        await putBattles(env, body.battles);
+
+        const current = await getStore(env);
+        const clientTs = body.updatedAt || 0;
+
+        // 时间戳冲突检测：客户端数据比服务器旧 → 拒绝写入
+        if (clientTs > 0 && current.updatedAt > 0 && clientTs < current.updatedAt) {
+          return new Response(
+            JSON.stringify({
+              conflict: true,
+              serverUpdatedAt: current.updatedAt,
+              clientUpdatedAt: clientTs,
+              message: '服务器数据更新，请先刷新再操作',
+            }),
+            { status: 409, headers: CORS_HEADERS },
+          );
+        }
+
+        const now = Date.now();
+        await putStore(env, { battles: body.battles, updatedAt: now });
         return new Response(
-          JSON.stringify({ ok: true, count: body.battles.length }),
+          JSON.stringify({ ok: true, updatedAt: now, count: body.battles.length }),
           { headers: CORS_HEADERS },
         );
       } catch (e) {
-        return new Response(
-          JSON.stringify({ error: String(e) }),
-          { status: 500, headers: CORS_HEADERS },
-        );
+        return new Response(JSON.stringify({ error: String(e) }), {
+          status: 500, headers: CORS_HEADERS,
+        });
       }
     }
 
-    // ---- 404 ----
     return new Response(JSON.stringify({ error: 'Not found' }), {
-      status: 404,
-      headers: CORS_HEADERS,
+      status: 404, headers: CORS_HEADERS,
     });
   },
 };

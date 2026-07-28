@@ -1,95 +1,111 @@
 import type { BattleCampaign } from '../types';
 
 // ============================================================
-// API 端点 — 部署 Worker 后替换为实际域名
-// 开发阶段不填 → 自动回退到 localStorage only
-// ============================================================
 const API_BASE = 'https://kmyc-api.24wddp.workers.dev';
-
-// ============================================================
-// 本地存储（始终作为离线兜底）
-// ============================================================
 const STORAGE_KEY = 'kmyc-battles';
 const VERSION_KEY = 'kmyc-data-version';
-const SYNC_FLAG_KEY = 'kmyc-last-sync';
+const TIMESTAMP_KEY = 'kmyc-updated-at';
 
-export function loadLocal(): BattleCampaign[] {
+// ============================================================
+// 本地读写
+// ============================================================
+export function loadLocal(): { battles: BattleCampaign[]; updatedAt: number } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
+    const ts = Number(localStorage.getItem(TIMESTAMP_KEY)) || 0;
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return { battles: parsed, updatedAt: ts };
+      }
     }
   } catch { /* ignore */ }
-  return [];
+  return { battles: [], updatedAt: 0 };
 }
 
 export function saveLocal(battles: BattleCampaign[], version = 1) {
+  const now = Date.now();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(battles));
     localStorage.setItem(VERSION_KEY, String(version));
+    localStorage.setItem(TIMESTAMP_KEY, String(now));
   } catch { /* ignore */ }
 }
 
 // ============================================================
 // 远程 API
 // ============================================================
-
-/** 从远程拉取全部战役 */
-export async function fetchRemote(): Promise<BattleCampaign[] | null> {
-  if (!API_BASE) return null;
+export async function fetchRemote(): Promise<{
+  battles: BattleCampaign[];
+  updatedAt: number;
+} | null> {
   try {
     const res = await fetch(`${API_BASE}/api/battles`);
     if (!res.ok) return null;
     const data = await res.json();
-    if (Array.isArray(data.battles)) return data.battles;
-  } catch { /* network error — offline */ }
+    if (Array.isArray(data.battles)) {
+      return { battles: data.battles, updatedAt: data.updatedAt || 0 };
+    }
+  } catch { /* offline */ }
   return null;
 }
 
-/** 推送全部战役到远程 */
-export async function pushRemote(battles: BattleCampaign[]): Promise<boolean> {
-  if (!API_BASE) return false;
+export async function pushRemote(
+  battles: BattleCampaign[],
+  updatedAt: number,
+): Promise<{ ok: boolean; conflict: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/api/battles`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ battles }),
+      body: JSON.stringify({ battles, updatedAt }),
     });
-    return res.ok;
+    await res.json(); // consume body
+    if (res.status === 409) {
+      return { ok: false, conflict: true };
+    }
+    return { ok: res.ok, conflict: false };
   } catch {
-    return false;
+    return { ok: false, conflict: false };
   }
 }
 
 // ============================================================
-// 智能合并：local 条数优先，再按最后同步时间
-// 策略：启动时同时拉取远程和本地，取二者中条目多的那一份
+// 同步逻辑：时间戳严格比对
 // ============================================================
-export async function syncBattles(local: BattleCampaign[]): Promise<BattleCampaign[]> {
+export async function syncBattles(
+  localBattles: BattleCampaign[],
+  localTs: number,
+): Promise<BattleCampaign[]> {
   const remote = await fetchRemote();
-  if (!remote) return local;
-
-  // 远程有新数据（其他设备写入的）→ 用远程
-  if (remote.length >= local.length) {
-    saveLocal(remote);
-    localStorage.setItem(SYNC_FLAG_KEY, String(Date.now()));
-    return remote;
+  if (!remote || remote.battles.length === 0) {
+    // 远程为空 → 推送本地上去
+    await pushRemote(localBattles, localTs);
+    return localBattles;
   }
 
-  // 本地更多 → 推送到远程
-  const ok = await pushRemote(local);
-  if (ok) {
-    localStorage.setItem(SYNC_FLAG_KEY, String(Date.now()));
+  if (remote.updatedAt === localTs) {
+    // 时间戳完全一致 → 已同步，无需操作
+    return localBattles;
   }
-  return local;
+
+  if (remote.updatedAt > localTs) {
+    // 远程更新 → 拉取远程覆盖本地
+    saveLocal(remote.battles);
+    return remote.battles;
+  }
+
+  // 本地更新 → 推送本地覆盖远程
+  await pushRemote(localBattles, localTs);
+  return localBattles;
 }
 
-/** 保存：同时写本地 + 异步推远程（不阻塞 UI） */
+// ============================================================
+// 保存：写本地 + 推远程
+// ============================================================
 export function saveBattleBoth(battles: BattleCampaign[], version?: number) {
   saveLocal(battles, version);
-  // 后台推送
-  pushRemote(battles).then((ok) => {
-    if (ok) localStorage.setItem(SYNC_FLAG_KEY, String(Date.now()));
-  });
+  const { updatedAt } = loadLocal();
+  // 异步推，不阻塞 UI
+  pushRemote(battles, updatedAt);
 }

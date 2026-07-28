@@ -27,7 +27,7 @@ function mergeWithMock(local: BattleCampaign[]): BattleCampaign[] {
 // ============================================================
 function App() {
   const [battles, setBattles] = useState<BattleCampaign[]>(() => {
-    const local = api.loadLocal();
+    const { battles: local } = api.loadLocal();
     const merged = local.length === 0 ? mockBattles : mergeWithMock(local);
     api.saveLocal(merged, DATA_VERSION);
     return merged;
@@ -83,11 +83,12 @@ function App() {
     api.saveBattleBoth(updated, DATA_VERSION);
   }, []);
 
-  // ---- 启动时从远程同步 ----
+  // ---- 启动时从远程同步（时间戳比对） ----
   useEffect(() => {
-    api.syncBattles(battles).then((remote) => {
-      if (remote.length > battles.length) {
-        setBattles(remote);
+    const { updatedAt } = api.loadLocal();
+    api.syncBattles(battles, updatedAt).then((result) => {
+      if (result !== battles) {
+        setBattles(result);
       }
       setSynced(true);
     });
