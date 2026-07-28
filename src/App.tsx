@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { ViewMode, BattleCampaign } from './types';
 import { mockBattles } from './data';
 import { useAnniversary } from './hooks/useAnniversary';
+import * as api from './api/battlesApi';
 import Navbar from './components/Navbar';
 import MapView from './components/MapView';
 import TimelineView from './components/TimelineView';
@@ -11,56 +12,27 @@ import AnniversaryBanner from './components/AnniversaryBanner';
 import CampaignCalendar from './components/CampaignCalendar';
 
 // ============================================================
-// localStorage 读写（含版本自动迁移）
+// 数据版本 — bump 即可触发所有用户自动合并最新 mock
 // ============================================================
-const STORAGE_KEY = 'kmyc-battles';
-const VERSION_KEY = 'kmyc-data-version';
-
-/** bump 此版本号即可触发所有用户自动合并最新 mock 数据 */
 const DATA_VERSION = 2;
 
-function loadBattles(): BattleCampaign[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const storedVersion = Number(localStorage.getItem(VERSION_KEY)) || 0;
-
-    if (raw && storedVersion === DATA_VERSION) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-
-    // 版本不匹配 → 智能合并：保留用户自定义 + 更新 mock 数据
-    if (raw && storedVersion < DATA_VERSION) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const mockIds = new Set(mockBattles.map((b) => b.id));
-        // 保留用户自建的战役（ID 不在 mock 中）
-        const userBattles = parsed.filter((b: BattleCampaign) => !mockIds.has(b.id));
-        // mock 条目以最新代码为准，用户条目追加在后面
-        const merged = [...mockBattles, ...userBattles];
-        saveBattles(merged, DATA_VERSION);
-        return merged;
-      }
-    }
-  } catch { /* ignore */ }
-
-  // 首次使用 / 数据损坏 → 写入最新数据
-  saveBattles(mockBattles, DATA_VERSION);
-  return mockBattles;
-}
-
-function saveBattles(battles: BattleCampaign[], version = DATA_VERSION) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(battles));
-    localStorage.setItem(VERSION_KEY, String(version));
-  } catch { /* quota exceeded etc. */ }
+function mergeWithMock(local: BattleCampaign[]): BattleCampaign[] {
+  const mockIds = new Set(mockBattles.map((b) => b.id));
+  const userBattles = local.filter((b) => !mockIds.has(b.id));
+  return [...mockBattles, ...userBattles];
 }
 
 // ============================================================
 // App
 // ============================================================
 function App() {
-  const [battles, setBattles] = useState<BattleCampaign[]>(loadBattles);
+  const [battles, setBattles] = useState<BattleCampaign[]>(() => {
+    const local = api.loadLocal();
+    const merged = local.length === 0 ? mockBattles : mergeWithMock(local);
+    api.saveLocal(merged, DATA_VERSION);
+    return merged;
+  });
+  const [synced, setSynced] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [selectedBattleId, setSelectedBattleId] = useState<string | null>(null);
 
@@ -108,8 +80,18 @@ function App() {
   // ---- CRUD ----
   const persist = useCallback((updated: BattleCampaign[]) => {
     setBattles(updated);
-    saveBattles(updated);
+    api.saveBattleBoth(updated, DATA_VERSION);
   }, []);
+
+  // ---- 启动时从远程同步 ----
+  useEffect(() => {
+    api.syncBattles(battles).then((remote) => {
+      if (remote.length > battles.length) {
+        setBattles(remote);
+      }
+      setSynced(true);
+    });
+  }, []); // 仅首次挂载
 
   const handleAddBattle = useCallback(() => {
     setEditingBattle(null);
@@ -197,6 +179,11 @@ function App() {
             today={today}
             onSelectBattle={handleAnniversaryClick}
           />
+          <div className="mx-auto max-w-2xl px-4 text-center">
+            <span className="text-[10px]" style={{ color: 'var(--color-khaki-light)', opacity: synced ? 0.5 : 0.8 }}>
+              {synced ? '☁️ 已同步' : '🔄 同步中…'}
+            </span>
+          </div>
           <TimelineView
             battles={battles}
             selectedBattleId={selectedBattleId}

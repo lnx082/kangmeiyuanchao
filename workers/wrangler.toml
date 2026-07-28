@@ -1,0 +1,18 @@
+name = "kmyc-api"
+main = "src/index.ts"
+compatibility_date = "2026-07-28"
+
+# ============================================================
+# KV 命名空间绑定
+# 部署前需要先创建 KV namespace:
+#   npx wrangler kv:namespace create "KMYC_BATTLES"
+#   npx wrangler kv:namespace create "KMYC_BATTLES" --preview
+# 然后把输出的 id 填入下方
+# ============================================================
+[[kv_namespaces]]
+binding = "KMYC_BATTLES"
+id = "5da609975a7e4601825b7267edd362b5"
+
+# 允许前端跨域访问
+[triggers]
+crons = []
