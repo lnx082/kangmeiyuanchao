@@ -5,6 +5,7 @@ interface Props {
   anniversaries: AnniversaryMatch[];
   notifyEnabled: boolean;
   browserPerm: NotificationPermission;
+  isDebugMode: boolean;
   onToggleNotify: () => void;
   onSelectBattle: (id: string) => void;
 }
@@ -13,12 +14,22 @@ export default function AnniversaryBanner({
   anniversaries,
   notifyEnabled,
   browserPerm,
+  isDebugMode,
   onToggleNotify,
   onSelectBattle,
 }: Props) {
   const [dismissed, setDismissed] = useState(false);
 
-  if (anniversaries.length === 0 || dismissed) return null;
+  // 调试模式标记
+  const debugNote = isDebugMode ? (
+    <span className="ml-2 rounded-full bg-amber-500/25 px-2 py-0.5 text-[10px] text-amber-300">
+      🧪 调试模式
+    </span>
+  ) : null;
+
+  // 非纪念日 + 非调试模式 → 不显示
+  if (anniversaries.length === 0 && !isDebugMode) return null;
+  if (anniversaries.length === 0 && dismissed) return null;
 
   return (
     <div
@@ -51,10 +62,15 @@ export default function AnniversaryBanner({
           <span className="text-xl sm:text-2xl">🔔</span>
           <div>
             <p className="text-sm font-bold text-amber-300 sm:text-base">
-              今日抗美援朝胜利纪念日
+              {anniversaries.length > 0
+                ? '今日抗美援朝胜利纪念日'
+                : '调试模式 — 模拟纪念日'}
+              {debugNote}
             </p>
             <p className="text-[11px] text-amber-100/70 sm:text-xs">
-              {anniversaries.map((a) => a.battle.name).join(' · ')}
+              {anniversaries.length > 0
+                ? anniversaries.map((a) => a.battle.name).join(' · ')
+                : '当前日期未匹配到任何战役纪念日'}
             </p>
           </div>
         </div>

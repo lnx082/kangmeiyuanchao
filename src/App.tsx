@@ -65,6 +65,7 @@ function App() {
     todayAnniversaries,
     notifyEnabled,
     browserPerm,
+    isDebugMode,
     toggleNotify,
   } = useAnniversary(battles);
 
@@ -154,6 +155,7 @@ function App() {
         anniversaries={todayAnniversaries}
         notifyEnabled={notifyEnabled}
         browserPerm={browserPerm}
+        isDebugMode={isDebugMode}
         onToggleNotify={toggleNotify}
         onSelectBattle={handleAnniversaryClick}
       />

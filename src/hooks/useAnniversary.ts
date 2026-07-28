@@ -40,10 +40,21 @@ export function useAnniversary(battles: BattleCampaign[]) {
   const notifiedToday = useRef(false);
 
   // ---- 今日月日 ----
+  // 支持调试模式：在控制台执行
+  //   localStorage.setItem('kmyc-debug-date', '10-25');
+  //   然后刷新页面即可模拟 10 月 25 日
+  //   清除：localStorage.removeItem('kmyc-debug-date'); 刷新
   const today = useMemo(() => {
+    let debugDate: string | null = null;
+    try {
+      debugDate = localStorage.getItem('kmyc-debug-date');
+    } catch { /* ignore */ }
+    if (debugDate && /^\d{1,2}-\d{1,2}$/.test(debugDate)) {
+      const [m, d] = debugDate.split('-').map(Number);
+      return { month: m, day: d, year: new Date().getFullYear() };
+    }
     const d = new Date();
     return { month: d.getMonth() + 1, day: d.getDate(), year: d.getFullYear() };
-    // 依赖为空：仅在挂载时计算，跨天后需要刷新页面
   }, []);
 
   // ---- 匹配今日纪念日 ----
@@ -155,6 +166,10 @@ export function useAnniversary(battles: BattleCampaign[]) {
     todayAnniversaries,
     /** 今天是否是某个纪念日 */
     hasAnniversary: todayAnniversaries.length > 0,
+    /** 是否处于调试模式 */
+    isDebugMode: (() => {
+      try { return !!localStorage.getItem('kmyc-debug-date'); } catch { return false; }
+    })(),
     /** 通知开关 */
     notifyEnabled,
     /** 浏览器通知权限状态 */
