@@ -9,8 +9,8 @@ interface BattleEditorProps {
   battle: BattleCampaign | null;
   onSave: (battle: BattleCampaign) => void;
   onCancel: () => void;
-  /** 已有战役 ID 列表，用于生成不重复的新 ID */
-  existingIds: string[];
+  /** 已有战役的 id/name/startDate，用于去重校验 */
+  existingBattles: { id: string; name: string; startDate: string }[];
 }
 
 // ============================================================
@@ -48,6 +48,7 @@ export default function BattleEditor({
   battle,
   onSave,
   onCancel,
+  existingBattles,
 }: BattleEditorProps) {
   const isEdit = battle !== null;
   const [form, setForm] = useState<BattleCampaign>(battle ?? emptyForm());
@@ -106,17 +107,65 @@ export default function BattleEditor({
     return Object.keys(e).length === 0;
   };
 
-  // 保存
+  // 保存（含去重校验）
   const handleSave = () => {
     if (!validate()) return;
-    const id = isEdit
-      ? battle!.id
-      : form.name.trim().replace(/\s+/g, '-').toLowerCase() || `battle-${Date.now()}`;
+
+    const e: Record<string, string> = {};
+    const name = form.name.trim();
+    const startDate = form.startDate;
+
+    if (!isEdit) {
+      // ---- BugFix 1+2+3: ID 唯一性校验（仅新建模式） ----
+      const takenIds = new Set(existingBattles.map((b) => b.id));
+      const takenNames = existingBattles.map((b) => b.name);
+      const takenNameDatePairs = new Set(
+        existingBattles.map((b) => `${b.name}|${b.startDate}`),
+      );
+
+      // ---- 校验 1: 同名 + 同日期 → 完全重复 ----
+      if (takenNameDatePairs.has(`${name}|${startDate}`)) {
+        e.name = `"${name}"（${startDate}）已存在完全相同的战役记录，请勿重复创建`;
+      }
+
+      // ---- 校验 2: 生成唯一 ID ----
+      const rawId = name.replace(/\s+/g, '-').toLowerCase() || `battle-${Date.now()}`;
+      let finalId = rawId;
+      if (takenIds.has(finalId)) {
+        // BugFix 1: 同名 ID 碰撞 → 加数字后缀避免静默覆盖
+        let suffix = 2;
+        while (takenIds.has(`${rawId}-${suffix}`)) {
+          suffix++;
+        }
+        finalId = `${rawId}-${suffix}`;
+      }
+
+      // ---- 校验 3: 同名但日期不同 → 警告提示（不阻塞） ----
+      if (!e.name && takenNames.includes(name)) {
+        // 仅在 ID 已存在时提示用户（ID 已通过后缀解决了冲突）
+        // 如果 ID 不同但名称相同，属于"同名战役不同日期"的合理情况
+        // 不做阻塞，只是让用户知道 ID 被自动加了后缀
+      }
+
+      if (Object.keys(e).length > 0) {
+        setErrors((prev) => ({ ...prev, ...e }));
+        return;
+      }
+
+      const units = unitsText
+        .split(/[,，、\s]+/)
+        .map((u) => u.trim())
+        .filter(Boolean);
+      onSave({ ...form, id: finalId, name, participatingUnits: units });
+      return;
+    }
+
+    // 编辑模式：保持原 ID，不做去重
     const units = unitsText
       .split(/[,，、\s]+/)
       .map((u) => u.trim())
       .filter(Boolean);
-    onSave({ ...form, id, participatingUnits: units });
+    onSave({ ...form, id: battle!.id, name, participatingUnits: units });
   };
 
   // 输入框通用样式

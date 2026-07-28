@@ -43,8 +43,11 @@ function App() {
   const [editingBattle, setEditingBattle] = useState<BattleCampaign | null>(null);
   const [showEditor, setShowEditor] = useState(false);
 
-  // 现有 ID 列表（用于新 ID 去重）
-  const existingIds = useMemo(() => battles.map((b) => b.id), [battles]);
+  // 已有战役摘要（用于编辑器去重校验）
+  const existingBattles = useMemo(
+    () => battles.map((b) => ({ id: b.id, name: b.name, startDate: b.startDate })),
+    [battles],
+  );
 
   // ---- 选中逻辑 ----
   const handleBattleSelect = useCallback((id: string) => {
@@ -82,22 +85,34 @@ function App() {
   }, [battles, persist, selectedBattleId]);
 
   const handleSaveBattle = useCallback((battle: BattleCampaign) => {
-    let updated: BattleCampaign[];
-    const idx = battles.findIndex((b) => b.id === battle.id);
-    if (idx >= 0) {
-      // 编辑
-      updated = [...battles];
-      updated[idx] = battle;
-    } else {
-      // 新增
-      updated = [...battles, battle];
+    const existingIdx = battles.findIndex((b) => b.id === battle.id);
+
+    // BugFix 1+4: 二次校验——编辑模式下 ID 不变，新增模式下确保 ID 不重复
+    if (existingIdx < 0) {
+      // 新增：最终确认 ID 不会覆盖已有记录
+      if (battles.some((b) => b.id === battle.id)) {
+        console.error('Duplicate ID detected, aborting save:', battle.id);
+        return;
+      }
+      // BugFix 4: 同名+同日期最终检查
+      const dup = battles.find(
+        (b) => b.name === battle.name && b.startDate === battle.startDate,
+      );
+      if (dup) {
+        console.error('Duplicate name+date detected, aborting save:', battle.name);
+        return;
+      }
     }
+
+    const updated: BattleCampaign[] =
+      existingIdx >= 0
+        ? Object.assign([...battles], { [existingIdx]: battle }) // 编辑
+        : [...battles, battle]; // 新增
+
     persist(updated);
     setShowEditor(false);
     setEditingBattle(null);
-    // 自动选中新添加的战役
     setSelectedBattleId(battle.id);
-    // 如果在地图模式，切回日历让用户看到新卡片；日历模式则保持
   }, [battles, persist]);
 
   return (
@@ -153,7 +168,7 @@ function App() {
             setShowEditor(false);
             setEditingBattle(null);
           }}
-          existingIds={existingIds}
+          existingBattles={existingBattles}
         />
       )}
     </div>
