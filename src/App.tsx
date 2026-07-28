@@ -1,11 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { ViewMode, BattleCampaign } from './types';
 import { mockBattles } from './data';
+import { useAnniversary } from './hooks/useAnniversary';
 import Navbar from './components/Navbar';
 import MapView from './components/MapView';
 import TimelineView from './components/TimelineView';
 import BattleInfoPanel from './components/BattleInfoPanel';
 import BattleEditor from './components/BattleEditor';
+import AnniversaryBanner from './components/AnniversaryBanner';
 
 // ============================================================
 // localStorage 读写
@@ -57,6 +59,26 @@ function App() {
   const selectedBattle = selectedBattleId
     ? battles.find((b) => b.id === selectedBattleId) ?? null
     : null;
+
+  // ---- 纪念日检测 + 通知 ----
+  const {
+    todayAnniversaries,
+    notifyEnabled,
+    browserPerm,
+    toggleNotify,
+  } = useAnniversary(battles);
+
+  // 今日纪念日涉及的所有战役 ID（用于时间线高亮）
+  const anniversaryIds = useMemo(
+    () => new Set(todayAnniversaries.map((a) => a.battle.id)),
+    [todayAnniversaries],
+  );
+
+  // 横幅点击 → 切换到日历模式并选中对应战役
+  const handleAnniversaryClick = useCallback((id: string) => {
+    setSelectedBattleId(id);
+    setViewMode('calendar');
+  }, []);
 
   // ---- CRUD ----
   const persist = useCallback((updated: BattleCampaign[]) => {
@@ -127,6 +149,15 @@ function App() {
         onAddBattle={handleAddBattle}
       />
 
+      {/* 纪念日横幅（Layer 1） */}
+      <AnniversaryBanner
+        anniversaries={todayAnniversaries}
+        notifyEnabled={notifyEnabled}
+        browserPerm={browserPerm}
+        onToggleNotify={toggleNotify}
+        onSelectBattle={handleAnniversaryClick}
+      />
+
       {/* 主内容 */}
       {viewMode === 'calendar' ? (
         <main
@@ -141,6 +172,7 @@ function App() {
             onEditBattle={handleEditBattle}
             onDeleteBattle={handleDeleteBattle}
             onAddBattle={handleAddBattle}
+            anniversaryIds={anniversaryIds}
           />
         </main>
       ) : (

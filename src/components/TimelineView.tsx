@@ -8,6 +8,8 @@ interface TimelineViewProps {
   onEditBattle: (id: string) => void;
   onDeleteBattle: (id: string) => void;
   onAddBattle: () => void;
+  /** 今日纪念日对应的战役 ID 集合（用于高亮标记） */
+  anniversaryIds: Set<string>;
 }
 
 /** 结果徽章配置 — 使用设计令牌色 */
@@ -50,6 +52,7 @@ export default function TimelineView({
   onEditBattle,
   onDeleteBattle,
   onAddBattle,
+  anniversaryIds,
 }: TimelineViewProps) {
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -129,6 +132,7 @@ export default function TimelineView({
                   config={config}
                   onEdit={onEditBattle}
                   onDelete={onDeleteBattle}
+                  isAnniversary={anniversaryIds.has(battle.id)}
                 />
               </div>
             </li>
@@ -224,12 +228,14 @@ function BattleCard({
   config,
   onEdit,
   onDelete,
+  isAnniversary,
 }: {
   battle: BattleCampaign;
   selected: boolean;
   config: (typeof resultConfig)[BattleResult];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  isAnniversary: boolean;
 }) {
   return (
     <div
@@ -277,6 +283,11 @@ function BattleCard({
         >
           {config.label}
         </span>
+        {isAnniversary && (
+          <span className="shrink-0 animate-pulse rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-500 sm:text-xs">
+            🕯️ 今日纪念
+          </span>
+        )}
         {/* 编辑 / 删除 — 悬停或选中时显示 */}
         <div className={`ml-auto flex gap-0.5 transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
           <button
