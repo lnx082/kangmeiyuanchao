@@ -8,6 +8,7 @@ import TimelineView from './components/TimelineView';
 import BattleInfoPanel from './components/BattleInfoPanel';
 import BattleEditor from './components/BattleEditor';
 import AnniversaryBanner from './components/AnniversaryBanner';
+import CampaignCalendar from './components/CampaignCalendar';
 
 // ============================================================
 // localStorage 读写
@@ -62,6 +63,7 @@ function App() {
 
   // ---- 纪念日检测 + 通知 ----
   const {
+    today,
     todayAnniversaries,
     notifyEnabled,
     browserPerm,
@@ -167,6 +169,11 @@ function App() {
           className="mode-transition flex-1 overflow-y-auto"
           style={{ background: 'var(--bg-app)' }}
         >
+          <CampaignCalendar
+            battles={battles}
+            today={today}
+            onSelectBattle={handleAnniversaryClick}
+          />
           <TimelineView
             battles={battles}
             selectedBattleId={selectedBattleId}

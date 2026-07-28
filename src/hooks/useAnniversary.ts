@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { BattleCampaign } from '../types';
 
 // ============================================================
@@ -35,9 +35,6 @@ export function useAnniversary(battles: BattleCampaign[]) {
 
   // 浏览器通知权限状态
   const [browserPerm, setBrowserPerm] = useState<NotificationPermission>('default');
-
-  // 当天已通知标记（防重复）
-  const notifiedToday = useRef(false);
 
   // ---- 今日月日 ----
   // 支持调试模式：在控制台执行
@@ -110,76 +107,68 @@ export function useAnniversary(battles: BattleCampaign[]) {
     }
   }, [notifyEnabled, requestPermission]);
 
-  // ---- Layer2: 浏览器通知 ----
-  const sendNotifications = useCallback(() => {
-    if (
-      !notifyEnabled ||
-      browserPerm !== 'granted' ||
-      !('Notification' in window) ||
-      todayAnniversaries.length === 0 ||
-      notifiedToday.current
-    ) {
-      return;
+  // 调试模式标记
+  const isDebugMode = (() => {
+    try { return !!localStorage.getItem('kmyc-debug-date'); } catch { return false; }
+  })();
+
+  // ---- 调试模式：自动请求通知权限 ----
+  useEffect(() => {
+    if (isDebugMode && browserPerm === 'default' && 'Notification' in window) {
+      Notification.requestPermission().then((perm) => {
+        setBrowserPerm(perm);
+        if (perm === 'granted') {
+          setNotifyEnabled(true);
+          localStorage.setItem(NOTIFY_PERMISSION_KEY, 'true');
+        }
+      });
     }
-
-    // 检查上次通知日期
-    const todayKey = `${today.year}-${today.month}-${today.day}`;
-    try {
-      if (localStorage.getItem(LAST_NOTIFY_DATE_KEY) === todayKey) {
-        notifiedToday.current = true;
-        return;
-      }
-    } catch { /* ignore */ }
-
-    notifiedToday.current = true;
-    localStorage.setItem(LAST_NOTIFY_DATE_KEY, todayKey);
-
-    // 逐条发送通知
-    todayAnniversaries.forEach((ann, i) => {
-      // 延迟发送多条，避免浏览器合并
-      setTimeout(() => {
-        const title =
-          ann.kind === 'start'
-            ? `🗓️ ${ann.battle.name}开战纪念日`
-            : `🏁 ${ann.battle.name}胜利纪念日`;
-
-        const body =
-          ann.kind === 'start'
-            ? `${ann.date}，${ann.battle.name}打响。距今${ann.yearsAgo}年。${ann.battle.resultSummary.slice(0, 60)}…`
-            : `${ann.date}，${ann.battle.name}胜利结束。距今${ann.yearsAgo}年。${ann.battle.resultSummary.slice(0, 60)}…`;
-
-        new Notification(title, {
-          body,
-          icon: '/favicon.svg',
-          tag: `kmyc-${ann.battle.id}-${ann.kind}`,
-          requireInteraction: i === 0, // 第一条需要用户手动关闭
-        });
-      }, i * 800);
-    });
-  }, [notifyEnabled, browserPerm, todayAnniversaries, today]);
+  }, [isDebugMode, browserPerm]);
 
   // ---- 页面加载后自动发通知 ----
   useEffect(() => {
-    const timer = setTimeout(sendNotifications, 2000);
+    // 调试模式强制尝试发送（跳过 notifyEnabled 检查）
+    const effectiveEnabled = isDebugMode ? browserPerm === 'granted' : notifyEnabled;
+    if (!effectiveEnabled || todayAnniversaries.length === 0) return;
+
+    const timer = setTimeout(() => {
+      // 防重复
+      const todayKey = `${today.year}-${today.month}-${today.day}`;
+      try {
+        if (localStorage.getItem(LAST_NOTIFY_DATE_KEY) === todayKey) return;
+      } catch { /* ignore */ }
+      localStorage.setItem(LAST_NOTIFY_DATE_KEY, todayKey);
+
+      todayAnniversaries.forEach((ann, i) => {
+        setTimeout(() => {
+          new Notification(
+            ann.kind === 'start'
+              ? `🗓️ ${ann.battle.name}开战纪念日`
+              : `🏁 ${ann.battle.name}胜利纪念日`,
+            {
+              body: ann.kind === 'start'
+                ? `${ann.date}，${ann.battle.name}打响。距今${ann.yearsAgo}年。`
+                : `${ann.date}，${ann.battle.name}胜利结束。距今${ann.yearsAgo}年。`,
+              icon: '/favicon.svg',
+              tag: `kmyc-${ann.battle.id}-${ann.kind}`,
+              requireInteraction: i === 0,
+            },
+          );
+        }, i * 800);
+      });
+    }, 1500);
+
     return () => clearTimeout(timer);
-  }, [sendNotifications]);
+  }, [isDebugMode, notifyEnabled, browserPerm, todayAnniversaries, today]);
 
   return {
-    /** 今日匹配到的纪念日列表 */
+    today,
     todayAnniversaries,
-    /** 今天是否是某个纪念日 */
     hasAnniversary: todayAnniversaries.length > 0,
-    /** 是否处于调试模式 */
-    isDebugMode: (() => {
-      try { return !!localStorage.getItem('kmyc-debug-date'); } catch { return false; }
-    })(),
-    /** 通知开关 */
+    isDebugMode,
     notifyEnabled,
-    /** 浏览器通知权限状态 */
     browserPerm,
-    /** 切换通知开关 */
     toggleNotify,
-    /** 请求通知权限 */
     requestPermission,
   };
 }
