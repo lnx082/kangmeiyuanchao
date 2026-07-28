@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* ============================================================
+   设计令牌 ——「抗美援朝·保家卫国」
+   志愿军军服卡其 / 旗帜深红 / 复古纸张 / 克制排版
+   ============================================================ */
+
+:root {
+  /* ---- 核心色板 ---- */
+  --color-parchment: #f7f2e9;       /* 复古纸张底色 */
+  --color-parchment-warm: #efe8d8;  /* 暖调纸张（卡片）  */
+  --color-khaki: #8b7355;           /* 志愿军军服卡其   */
+  --color-khaki-light: #c4a97d;     /* 浅卡其点缀       */
+  --color-crimson: #8b1a1a;         /* 旗帜深红         */
+  --color-crimson-bright: #b71c1c;  /* 亮红（强调）     */
+  --color-gold: #c9a84c;            /* 褪色金           */
+  --color-ink: #3c2415;             /* 墨棕（正文）     */
+  --color-ink-light: #5c4033;       /* 浅棕（辅助文字） */
+
+  /* ---- 语义色 ---- */
+  --bg-app: var(--color-parchment);
+  --bg-card: var(--color-parchment-warm);
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-ink-light);
+  --accent: var(--color-crimson);
+  --accent-bright: var(--color-crimson-bright);
+  --border-color: #d9cfb8;
+  --shadow-sm: 0 1px 3px rgba(60, 36, 21, 0.08);
+  --shadow-md: 0 4px 16px rgba(60, 36, 21, 0.12);
+
+  /* ---- 排版 ---- */
+  --font-heading: 'Georgia', 'Noto Serif SC', serif;
+  --font-body: 'Georgia', 'Noto Serif SC', 'Source Han Serif SC', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ---- 全局基础 ---- */
+body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- 滚动条美化 ---- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-khaki-light);
+  border-radius: 3px;
+}
+
+/* ---- 选区颜色 ---- */
+::selection {
+  background: rgba(139, 26, 26, 0.25);
+  color: var(--color-ink);
+}

@@ -1,0 +1,83 @@
+/* ============================================================
+   模式切换淡入淡出
+   ============================================================ */
+
+@keyframes mode-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mode-transition {
+  animation: mode-fade-in 0.3s ease-out both;
+}
+
+/* ============================================================
+   侧边面板滑入（桌面端）
+   ============================================================ */
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ============================================================
+   底部抽屉弹出（移动端）
+   ============================================================ */
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ============================================================
+   Cesium 容器尺寸强制撑满
+   ============================================================ */
+
+/* 确保 Cesium 内部元素继承父容器完整尺寸 */
+.cesium-viewer,
+.cesium-widget,
+.cesium-widget canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Cesium 信用 / UI 微调 */
+.cesium-widget-credits {
+  font-size: 9px !important;
+  opacity: 0.4;
+}
+
+/* 缩小 Cesium 导航控件在小屏上的尺寸 */
+@media (max-width: 640px) {
+  .cesium-viewer-toolbar,
+  .cesium-viewer-navigationContainer {
+    transform: scale(0.75);
+    transform-origin: bottom right;
+  }
+}
