@@ -5,6 +5,9 @@ interface TimelineViewProps {
   battles: BattleCampaign[];
   selectedBattleId: string | null;
   onBattleSelect: (id: string) => void;
+  onEditBattle: (id: string) => void;
+  onDeleteBattle: (id: string) => void;
+  onAddBattle: () => void;
 }
 
 /** 结果徽章配置 — 使用设计令牌色 */
@@ -44,6 +47,9 @@ export default function TimelineView({
   battles,
   selectedBattleId,
   onBattleSelect,
+  onEditBattle,
+  onDeleteBattle,
+  onAddBattle,
 }: TimelineViewProps) {
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -117,7 +123,13 @@ export default function TimelineView({
                 />
 
                 {/* 卡片本体 */}
-                <BattleCard battle={battle} selected={selected} config={config} />
+                <BattleCard
+                  battle={battle}
+                  selected={selected}
+                  config={config}
+                  onEdit={onEditBattle}
+                  onDelete={onDeleteBattle}
+                />
               </div>
             </li>
           );
@@ -149,6 +161,27 @@ export default function TimelineView({
               'linear-gradient(to right, transparent, var(--color-khaki-light), transparent)',
           }}
         />
+      </div>
+
+      {/* 新增战役入口 */}
+      <div className="mt-8 text-center">
+        <button
+          type="button"
+          onClick={onAddBattle}
+          className="cursor-pointer inline-flex items-center gap-2 rounded-full border-2 border-dashed px-6 py-3 text-sm font-medium transition-all hover:border-solid hover:shadow-md"
+          style={{
+            borderColor: 'var(--color-khaki-light)',
+            color: 'var(--color-khaki)',
+          }}
+        >
+          ⭐ 添加新的战役纪念
+        </button>
+        <p
+          className="mt-2 text-[11px]"
+          style={{ color: 'var(--color-khaki-light)' }}
+        >
+          记录更多保家卫国的英雄事迹
+        </p>
       </div>
     </div>
   );
@@ -189,10 +222,14 @@ function BattleCard({
   battle,
   selected,
   config,
+  onEdit,
+  onDelete,
 }: {
   battle: BattleCampaign;
   selected: boolean;
   config: (typeof resultConfig)[BattleResult];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <div
@@ -224,7 +261,7 @@ function BattleCard({
         </span>
       </div>
 
-      {/* 标题 + 结果 */}
+      {/* 标题 + 结果 + 操作 */}
       <div className="mb-1.5 flex flex-wrap items-center gap-2 sm:mb-2">
         <h3
           className="text-base font-bold tracking-wide sm:text-lg"
@@ -240,6 +277,27 @@ function BattleCard({
         >
           {config.label}
         </span>
+        {/* 编辑 / 删除 — 悬停或选中时显示 */}
+        <div className={`ml-auto flex gap-0.5 transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onEdit(battle.id); }}
+            className="cursor-pointer rounded px-1.5 py-0.5 text-[10px] transition-colors hover:bg-black/5 sm:text-xs"
+            style={{ color: 'var(--color-khaki)' }}
+            title="编辑"
+          >
+            ✏️
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete(battle.id); }}
+            className="cursor-pointer rounded px-1.5 py-0.5 text-[10px] transition-colors hover:bg-red-50 sm:text-xs"
+            style={{ color: 'var(--color-crimson-bright)' }}
+            title="删除"
+          >
+            🗑️
+          </button>
+        </div>
       </div>
 
       {/* 英文名 */}

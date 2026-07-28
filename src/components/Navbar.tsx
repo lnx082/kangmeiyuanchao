@@ -3,9 +3,10 @@ import type { ViewMode } from '../types';
 interface NavbarProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  onAddBattle: () => void;
 }
 
-export default function Navbar({ viewMode, onViewModeChange }: NavbarProps) {
+export default function Navbar({ viewMode, onViewModeChange, onAddBattle }: NavbarProps) {
   return (
     <nav
       className="sticky top-0 z-50 border-b px-3 shadow-sm"
@@ -17,8 +18,7 @@ export default function Navbar({ viewMode, onViewModeChange }: NavbarProps) {
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between sm:h-16">
         {/* 左侧：品牌 */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          {/* 红星徽章 */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <div
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-base font-bold text-white sm:h-9 sm:w-9 sm:text-lg"
             style={{ background: 'var(--accent)' }}
@@ -26,7 +26,6 @@ export default function Navbar({ viewMode, onViewModeChange }: NavbarProps) {
           >
             记
           </div>
-          {/* 标题 */}
           <h1
             className="text-sm font-bold tracking-wide sm:text-lg"
             style={{
@@ -39,30 +38,46 @@ export default function Navbar({ viewMode, onViewModeChange }: NavbarProps) {
           </h1>
         </div>
 
-        {/* 右侧：模式切换 */}
-        <div
-          className="flex items-center rounded-lg p-0.5 sm:p-1"
-          style={{ background: '#ede4d3' }}
-        >
-          <ToggleButton
-            active={viewMode === 'calendar'}
-            onClick={() => onViewModeChange('calendar')}
-            label="日历"
-            icon="📅"
-          />
-          <ToggleButton
-            active={viewMode === 'map'}
-            onClick={() => onViewModeChange('map')}
-            label="位置"
-            icon="🌍"
-          />
+        {/* 右侧：操作区 */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* 新增按钮 */}
+          <button
+            type="button"
+            onClick={onAddBattle}
+            className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-200 hover:opacity-90 sm:px-4 sm:text-sm"
+            style={{
+              background: 'var(--color-crimson)',
+              color: '#fff',
+            }}
+          >
+            <span className="sm:hidden">＋</span>
+            <span className="hidden sm:inline">⭐ 新增战役</span>
+          </button>
+
+          {/* 模式切换 */}
+          <div
+            className="flex items-center rounded-lg p-0.5 sm:p-1"
+            style={{ background: '#ede4d3' }}
+          >
+            <ToggleButton
+              active={viewMode === 'calendar'}
+              onClick={() => onViewModeChange('calendar')}
+              label="日历"
+              icon="📅"
+            />
+            <ToggleButton
+              active={viewMode === 'map'}
+              onClick={() => onViewModeChange('map')}
+              label="位置"
+              icon="🌍"
+            />
+          </div>
         </div>
       </div>
     </nav>
   );
 }
 
-/** Toggle 按钮子组件 */
 function ToggleButton({
   active,
   onClick,

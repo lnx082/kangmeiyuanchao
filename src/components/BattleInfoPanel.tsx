@@ -3,6 +3,8 @@ import type { BattleCampaign, BattleResult } from '../types';
 interface BattleInfoPanelProps {
   battle: BattleCampaign | null;
   onClose: () => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 const resultLabel: Record<BattleResult, string> = {
@@ -27,7 +29,7 @@ function formatDateRange(start: string, end: string): string {
   return `${sy} 年 ${Number(sm)} 月 ${Number(sd)} 日 — ${ey} 年 ${Number(em)} 月 ${Number(ed)} 日`;
 }
 
-export default function BattleInfoPanel({ battle, onClose }: BattleInfoPanelProps) {
+export default function BattleInfoPanel({ battle, onClose, onEdit, onDelete }: BattleInfoPanelProps) {
   if (!battle) return null;
 
   // 共用内容渲染
@@ -49,14 +51,38 @@ export default function BattleInfoPanel({ battle, onClose }: BattleInfoPanelProp
             {battle.nameEn}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 text-white/50 transition-colors hover:border-white/40 hover:text-white sm:h-8 sm:w-8 cursor-pointer"
-          aria-label="关闭面板"
-        >
-          ✕
-        </button>
+        <div className="ml-3 flex shrink-0 items-center gap-1">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(battle.id)}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-white/50 transition-colors hover:border-white/40 hover:text-white sm:h-8 sm:w-8 cursor-pointer"
+              aria-label="编辑"
+              title="编辑战役"
+            >
+              ✏️
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(battle.id)}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-red-400/60 transition-colors hover:border-red-400/40 hover:text-red-300 sm:h-8 sm:w-8 cursor-pointer"
+              aria-label="删除"
+              title="删除战役"
+            >
+              🗑️
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 text-white/50 transition-colors hover:border-white/40 hover:text-white sm:h-8 sm:w-8 cursor-pointer"
+            aria-label="关闭面板"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* 标签行 */}
