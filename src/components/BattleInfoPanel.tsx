@@ -11,12 +11,14 @@ const resultLabel: Record<BattleResult, string> = {
   victory: '胜利',
   stalemate: '平局',
   defeat: '败北',
+  withdrawal: '撤退',
 };
 
 const resultColor: Record<BattleResult, string> = {
   victory: 'bg-red-700',
   stalemate: 'bg-amber-700',
   defeat: 'bg-slate-600',
+  withdrawal: 'bg-blue-700',
 };
 
 /** 格式化日期 */

@@ -315,7 +315,7 @@ export default function BattleEditor({
                       : 'border-slate-300 text-slate-500 hover:border-slate-400'
                   }`}
                 >
-                  {{ victory: '🏁 胜利', stalemate: '⚖️ 平局', defeat: '🏳️ 败北' }[r]}
+                  {{ victory: '🏁 胜利', stalemate: '⚖️ 平局', defeat: '🏳️ 败北', withdrawal: '↩️ 撤退' }[r]}
                 </button>
               ))}
             </div>

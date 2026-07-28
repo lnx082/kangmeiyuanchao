@@ -1,5 +1,5 @@
 /** 战役结果类型 */
-export type BattleResult = 'victory' | 'stalemate' | 'defeat';
+export type BattleResult = 'victory' | 'stalemate' | 'defeat' | 'withdrawal';
 
 /** 地理坐标 */
 export interface GeoCoordinates {

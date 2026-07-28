@@ -29,6 +29,11 @@ const resultConfig: Record<BattleResult, { label: string; dotClass: string; badg
     dotClass: 'bg-slate-600',
     badgeClass: 'bg-slate-50 text-slate-700 border-slate-300',
   },
+  withdrawal: {
+    label: '撤退',
+    dotClass: 'bg-blue-700',
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-300',
+  },
 };
 
 function formatDate(dateStr: string): string {
