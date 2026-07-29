@@ -78,37 +78,30 @@ export async function pushRemote(
 }
 
 // ============================================================
-// 同步逻辑：时间戳严格比对
+// 同步逻辑：远程优先，条数+时间戳双重比对
 // ============================================================
 export async function syncBattles(
   localBattles: BattleCampaign[],
   localTs: number,
 ): Promise<BattleCampaign[]> {
   const remote = await fetchRemote();
-  if (!remote || remote.battles.length === 0) {
-    // 远程为空 → 推送本地上去
+
+  // 远程不可达 → 保持本地
+  if (!remote) return localBattles;
+
+  // 远程为空、本地有数据 → 推上去
+  if (remote.battles.length === 0 && localBattles.length > 0) {
     await pushRemote(localBattles, localTs);
     return localBattles;
   }
 
-  if (remote.updatedAt === localTs) {
-    // 时间戳完全一致 → 已同步，无需操作
-    return localBattles;
-  }
-
-  if (remote.updatedAt > localTs) {
-    // 远程更新 → 拉取远程覆盖本地
-    saveLocal(remote.battles);
-    return remote.battles;
-  }
-
-  // 本地更新 → 推送本地覆盖远程
-  await pushRemote(localBattles, localTs);
-  return localBattles;
+  // 远程有数据 → 以远程为准（服务端是单一数据源）
+  saveLocal(remote.battles);
+  return remote.battles;
 }
 
 // ============================================================
-// 保存：写本地 + 推远程
+// 保存：写本地 + 立即推远程
 // ============================================================
 export function saveBattleBoth(battles: BattleCampaign[], version?: number) {
   saveLocal(battles, version);
