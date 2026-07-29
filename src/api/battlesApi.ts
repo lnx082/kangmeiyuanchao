@@ -40,13 +40,16 @@ export async function fetchRemote(): Promise<{
   updatedAt: number;
 } | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/battles`);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000); // 5秒超时
+    const res = await fetch(`${API_BASE}/api/battles`, { signal: ctrl.signal });
+    clearTimeout(timer);
     if (!res.ok) return null;
     const data = await res.json();
     if (Array.isArray(data.battles)) {
       return { battles: data.battles, updatedAt: data.updatedAt || 0 };
     }
-  } catch { /* offline */ }
+  } catch { /* offline / timeout */ }
   return null;
 }
 
@@ -55,12 +58,16 @@ export async function pushRemote(
   updatedAt: number,
 ): Promise<{ ok: boolean; conflict: boolean }> {
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
     const res = await fetch(`${API_BASE}/api/battles`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ battles, updatedAt }),
+      signal: ctrl.signal,
     });
-    await res.json(); // consume body
+    clearTimeout(timer);
+    await res.json();
     if (res.status === 409) {
       return { ok: false, conflict: true };
     }

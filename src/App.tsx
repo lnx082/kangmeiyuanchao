@@ -32,7 +32,6 @@ function App() {
     api.saveLocal(merged, DATA_VERSION);
     return merged;
   });
-  const [synced, setSynced] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [selectedBattleId, setSelectedBattleId] = useState<string | null>(null);
 
@@ -84,15 +83,21 @@ function App() {
   }, []);
 
   // ---- 启动时从远程同步（时间戳比对） ----
+  const [syncStatus, setSyncStatus] = useState<'🔄 同步中…' | '☁️ 已同步' | '📡 离线'>('🔄 同步中…');
   useEffect(() => {
     const { updatedAt } = api.loadLocal();
+    const timer = setTimeout(() => setSyncStatus('📡 离线'), 8000); // 8秒没完成=离线
     api.syncBattles(battles, updatedAt).then((result) => {
+      clearTimeout(timer);
       if (result !== battles) {
         setBattles(result);
       }
-      setSynced(true);
+      setSyncStatus('☁️ 已同步');
+    }).catch(() => {
+      clearTimeout(timer);
+      setSyncStatus('📡 离线');
     });
-  }, []); // 仅首次挂载
+  }, []);
 
   const handleAddBattle = useCallback(() => {
     setEditingBattle(null);
@@ -181,8 +186,8 @@ function App() {
             onSelectBattle={handleAnniversaryClick}
           />
           <div className="mx-auto max-w-2xl px-4 text-center">
-            <span className="text-[10px]" style={{ color: 'var(--color-khaki-light)', opacity: synced ? 0.5 : 0.8 }}>
-              v2.1 · {synced ? '☁️ 已同步' : '🔄 同步中…'}
+            <span className="text-[10px]" style={{ color: 'var(--color-khaki-light)', opacity: syncStatus === '☁️ 已同步' ? 0.5 : 0.8 }}>
+              v2.2 · {syncStatus}
             </span>
           </div>
           <TimelineView
