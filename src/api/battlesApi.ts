@@ -103,9 +103,10 @@ export async function syncBattles(
 // ============================================================
 // 保存：写本地 + 立即推远程
 // ============================================================
-export function saveBattleBoth(battles: BattleCampaign[], version?: number) {
+export async function saveBattleBoth(battles: BattleCampaign[], version?: number) {
   saveLocal(battles, version);
   const { updatedAt } = loadLocal();
-  // 异步推，不阻塞 UI
-  pushRemote(battles, updatedAt);
+  // 等待推送确认
+  const result = await pushRemote(battles, updatedAt);
+  return result; // { ok, conflict }
 }

@@ -77,9 +77,12 @@ function App() {
   }, []);
 
   // ---- CRUD ----
-  const persist = useCallback((updated: BattleCampaign[]) => {
+  const persist = useCallback(async (updated: BattleCampaign[]) => {
     setBattles(updated);
-    api.saveBattleBoth(updated, DATA_VERSION);
+    const result = await api.saveBattleBoth(updated, DATA_VERSION);
+    if (!result.ok) {
+      console.warn('推送 KV 失败，将在下次同步时重试');
+    }
   }, []);
 
   // ---- 启动时从远程同步（时间戳比对） ----
@@ -112,24 +115,21 @@ function App() {
     }
   }, [battles]);
 
-  const handleDeleteBattle = useCallback((id: string) => {
+  const handleDeleteBattle = useCallback(async (id: string) => {
     if (!window.confirm('确定要删除这场战役的记录吗？此操作不可恢复。')) return;
     const updated = battles.filter((b) => b.id !== id);
-    persist(updated);
+    await persist(updated);
     if (selectedBattleId === id) setSelectedBattleId(null);
   }, [battles, persist, selectedBattleId]);
 
-  const handleSaveBattle = useCallback((battle: BattleCampaign) => {
+  const handleSaveBattle = useCallback(async (battle: BattleCampaign) => {
     const existingIdx = battles.findIndex((b) => b.id === battle.id);
 
-    // BugFix 1+4: 二次校验——编辑模式下 ID 不变，新增模式下确保 ID 不重复
     if (existingIdx < 0) {
-      // 新增：最终确认 ID 不会覆盖已有记录
       if (battles.some((b) => b.id === battle.id)) {
         console.error('Duplicate ID detected, aborting save:', battle.id);
         return;
       }
-      // BugFix 4: 同名+同日期最终检查
       const dup = battles.find(
         (b) => b.name === battle.name && b.startDate === battle.startDate,
       );
@@ -145,7 +145,7 @@ function App() {
         : [...battles, battle];
 
     console.log('[保存]', existingIdx >= 0 ? '编辑' : '新增', battle.id, '总数:', updated.length);
-    persist(updated);
+    await persist(updated);
     setShowEditor(false);
     setEditingBattle(null);
     setSelectedBattleId(battle.id);
@@ -186,9 +186,19 @@ function App() {
             onSelectBattle={handleAnniversaryClick}
           />
           <div className="mx-auto max-w-2xl px-4 text-center">
-            <span className="text-[10px]" style={{ color: 'var(--color-khaki-light)', opacity: syncStatus === '☁️ 已同步' ? 0.5 : 0.8 }}>
-              v2.2 · {syncStatus}
-            </span>
+            <button
+              onClick={async () => {
+                setSyncStatus('🔄 同步中…');
+                const { updatedAt } = api.loadLocal();
+                const result = await api.syncBattles(battles, updatedAt);
+                if (result !== battles) setBattles(result);
+                setSyncStatus('☁️ 已同步');
+              }}
+              className="cursor-pointer text-[10px] transition-colors hover:opacity-70"
+              style={{ color: 'var(--color-khaki-light)', opacity: syncStatus === '☁️ 已同步' ? 0.5 : 0.8 }}
+            >
+              v2.3 · {syncStatus} · 点击同步
+            </button>
           </div>
           <TimelineView
             battles={battles}
