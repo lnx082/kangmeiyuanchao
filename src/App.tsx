@@ -182,7 +182,7 @@ function App() {
           />
           <div className="mx-auto max-w-2xl px-4 text-center">
             <span className="text-[10px]" style={{ color: 'var(--color-khaki-light)', opacity: synced ? 0.5 : 0.8 }}>
-              {synced ? '☁️ 已同步' : '🔄 同步中…'}
+              v2.1 · {synced ? '☁️ 已同步' : '🔄 同步中…'}
             </span>
           </div>
           <TimelineView
