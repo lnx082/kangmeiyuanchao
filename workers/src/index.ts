@@ -72,7 +72,7 @@ export default {
       );
     }
 
-    // ---- PUT /api/battles → 条件写入（只有客户端时间戳 ≥ 服务器时才写） ----
+    // ---- PUT /api/battles → 直接写入（客户端全权负责） ----
     if (request.method === 'PUT' && url.pathname === '/api/battles') {
       try {
         const body = (await request.json()) as { battles: BattleCampaign[]; updatedAt: number };
@@ -81,25 +81,7 @@ export default {
             status: 400, headers: CORS_HEADERS,
           });
         }
-
-        const current = await getStore(env);
-        const clientTs = body.updatedAt || 0;
-
-        // 时间戳冲突检测：客户端数据比服务器旧 → 拒绝写入
-        if (clientTs > 0 && current.updatedAt > 0 && clientTs < current.updatedAt) {
-          return new Response(
-            JSON.stringify({
-              conflict: true,
-              serverUpdatedAt: current.updatedAt,
-              clientUpdatedAt: clientTs,
-              message: '服务器数据更新，请先刷新再操作',
-            }),
-            { status: 409, headers: CORS_HEADERS },
-          );
-        }
-
-        const now = Date.now();
-        await putStore(env, { battles: body.battles, updatedAt: now });
+        await putStore(env, { battles: body.battles, updatedAt: Date.now() });
         return new Response(
           JSON.stringify({ ok: true, updatedAt: now, count: body.battles.length }),
           { headers: CORS_HEADERS },
