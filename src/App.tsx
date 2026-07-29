@@ -86,7 +86,7 @@ function App() {
   }, []);
 
   // ---- 启动时从远程同步（时间戳比对） ----
-  const [syncStatus, setSyncStatus] = useState<'🔄 同步中…' | '☁️ 已同步' | '📡 离线'>('🔄 同步中…');
+  const [syncStatus, setSyncStatus] = useState('🔄 同步中…');
   useEffect(() => {
     const { updatedAt } = api.loadLocal();
     const timer = setTimeout(() => setSyncStatus('📡 离线'), 8000); // 8秒没完成=离线
@@ -189,15 +189,23 @@ function App() {
             <button
               onClick={async () => {
                 setSyncStatus('🔄 同步中…');
-                const { updatedAt } = api.loadLocal();
-                const result = await api.syncBattles(battles, updatedAt);
-                if (result !== battles) setBattles(result);
-                setSyncStatus('☁️ 已同步');
+                try {
+                  const remote = await api.fetchRemote();
+                  if (!remote) {
+                    setSyncStatus('📡 无响应');
+                  } else {
+                    setBattles(remote.battles);
+                    api.saveLocal(remote.battles);
+                    setSyncStatus(`☁️ ${remote.battles.length}条`);
+                  }
+                } catch {
+                  setSyncStatus('📡 失败');
+                }
               }}
               className="cursor-pointer text-[10px] transition-colors hover:opacity-70"
-              style={{ color: 'var(--color-khaki-light)', opacity: syncStatus === '☁️ 已同步' ? 0.5 : 0.8 }}
+              style={{ color: 'var(--color-khaki-light)', opacity: syncStatus.includes('条') ? 0.5 : 0.8 }}
             >
-              v2.3 · {syncStatus} · 点击同步
+              v2.4 · {syncStatus} · 点击同步
             </button>
           </div>
           <TimelineView
