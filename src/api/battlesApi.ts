@@ -78,7 +78,7 @@ export async function pushRemote(
 }
 
 // ============================================================
-// 同步逻辑：远程优先，条数+时间戳双重比对
+// 同步逻辑：远程优先，但本地比远程新时先推送本地（防止丢数据）
 // ============================================================
 export async function syncBattles(
   localBattles: BattleCampaign[],
@@ -95,7 +95,13 @@ export async function syncBattles(
     return localBattles;
   }
 
-  // 远程有数据 → 以远程为准（服务端是单一数据源）
+  // 本地有数据且比远程新（上次保存推送失败等场景）→ 推送本地，避免被旧远程覆盖
+  if (localBattles.length > 0 && localTs > remote.updatedAt) {
+    await pushRemote(localBattles, localTs);
+    return localBattles;
+  }
+
+  // 远程有数据且不旧于本地 → 以远程为准（服务端是单一数据源）
   saveLocal(remote.battles);
   return remote.battles;
 }

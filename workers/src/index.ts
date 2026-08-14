@@ -81,7 +81,8 @@ export default {
             status: 400, headers: CORS_HEADERS,
           });
         }
-        await putStore(env, { battles: body.battles, updatedAt: Date.now() });
+        const now = Date.now();
+        await putStore(env, { battles: body.battles, updatedAt: now });
         return new Response(
           JSON.stringify({ ok: true, updatedAt: now, count: body.battles.length }),
           { headers: CORS_HEADERS },

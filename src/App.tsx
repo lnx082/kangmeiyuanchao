@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { ViewMode, BattleCampaign } from './types';
 import { mockBattles } from './data';
 import { useAnniversary } from './hooks/useAnniversary';
@@ -76,14 +76,27 @@ function App() {
     setViewMode('calendar');
   }, []);
 
+  // ---- 保存/同步结果提示 ----
+  const [toast, setToast] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  const showToast = useCallback((type: 'ok' | 'error', text: string) => {
+    setToast({ type, text });
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 4000);
+  }, []);
+
   // ---- CRUD ----
   const persist = useCallback(async (updated: BattleCampaign[]) => {
     setBattles(updated);
     const result = await api.saveBattleBoth(updated, DATA_VERSION);
-    if (!result.ok) {
-      console.warn('推送 KV 失败，将在下次同步时重试');
+    if (result.ok) {
+      showToast('ok', '☁️ 已保存并同步到云端');
+    } else if (result.conflict) {
+      showToast('error', '⚠️ 云端数据已更新，请刷新后再操作');
+    } else {
+      showToast('error', '⚠️ 云端同步失败：数据仅保存在本机，刷新后可能被覆盖');
     }
-  }, []);
+  }, [showToast]);
 
   // ---- 启动时从远程同步（时间戳比对） ----
   const [syncStatus, setSyncStatus] = useState('🔄 同步中…');
@@ -189,18 +202,10 @@ function App() {
             <button
               onClick={async () => {
                 setSyncStatus('🔄 同步中…');
-                try {
-                  const remote = await api.fetchRemote();
-                  if (!remote) {
-                    setSyncStatus('📡 无响应');
-                  } else {
-                    setBattles(remote.battles);
-                    api.saveLocal(remote.battles);
-                    setSyncStatus(`☁️ ${remote.battles.length}条`);
-                  }
-                } catch {
-                  setSyncStatus('📡 失败');
-                }
+                const { updatedAt } = api.loadLocal();
+                const result = await api.syncBattles(battles, updatedAt);
+                setBattles(result);
+                setSyncStatus(`☁️ ${result.length}条`);
               }}
               className="cursor-pointer text-[10px] transition-colors hover:opacity-70"
               style={{ color: 'var(--color-khaki-light)', opacity: syncStatus.includes('条') ? 0.5 : 0.8 }}
@@ -245,6 +250,22 @@ function App() {
           }}
           existingBattles={existingBattles}
         />
+      )}
+
+      {/* 保存/同步状态提示 */}
+      {toast && (
+        <div
+          className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg"
+          style={{
+            background: 'var(--bg-card)',
+            borderColor:
+              toast.type === 'error' ? 'var(--color-crimson-bright)' : 'var(--border-color)',
+            color: toast.type === 'error' ? 'var(--color-crimson)' : 'var(--color-ink)',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {toast.text}
+        </div>
       )}
     </div>
   );
