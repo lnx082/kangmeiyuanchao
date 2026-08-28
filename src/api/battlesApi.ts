@@ -1,7 +1,12 @@
 import type { BattleCampaign } from '../types';
 
 // ============================================================
-const API_BASE = 'https://kmyc-api.24wddp.workers.dev';
+// 云端 API 地址：默认 workers.dev，可用 VITE_API_BASE 环境变量覆盖
+// （例：.env 里写 VITE_API_BASE=https://api.example.com 后重新构建）
+// ============================================================
+const API_BASE =
+  (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/+$/, '') ||
+  'https://kmyc-api.24wddp.workers.dev';
 const STORAGE_KEY = 'kmyc-battles';
 const VERSION_KEY = 'kmyc-data-version';
 const TIMESTAMP_KEY = 'kmyc-updated-at';
