@@ -1,12 +1,32 @@
 import type { BattleCampaign } from '../types';
 
 // ============================================================
-// 云端 API 地址：默认 workers.dev，可用 VITE_API_BASE 环境变量覆盖
-// （例：.env 里写 VITE_API_BASE=https://api.example.com 后重新构建）
+// 云端 API 地址
+// 优先取 .env 的 VITE_API_BASE；若该值缺失或格式不合法
+// （误粘贴成 Markdown 链接 [url](url)、带首尾空格、缺 https:// 等），
+// 一律回退到默认地址 —— 否则 fetch 会把它当相对路径，
+// 拼成 https://站点域名/xxx/api/battles 这种必然失败的地址
 // ============================================================
-const API_BASE =
-  (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/+$/, '') ||
-  'https://kmyc-api.24wddp.workers.dev';
+const DEFAULT_API_BASE = 'https://1490480930-1axi29hdyw.ap-beijing.tencentscf.com';
+
+function normalizeApiBase(raw: unknown): string {
+  if (typeof raw !== 'string') return DEFAULT_API_BASE;
+
+  // 去掉首尾空白、可能误加的包裹符号（< > [ ] " '）和尾部斜杠
+  const v = raw
+    .trim()
+    .replace(/^[<["']+/, '')
+    .replace(/[>"'\]]+$/, '')
+    .trim()
+    .replace(/\/+$/, '');
+
+  // 必须是干净的绝对 http(s) 地址。
+  // Markdown 链接 [x](url)、整行粘贴（VITE_API_BASE=...）、缺 https:// 等
+  // 一律视为无效 → 回退默认地址，避免请求被拼到站点自身域名上必然失败
+  return /^https?:\/\/[^\s"'`)\]<>]+$/i.test(v) ? v : DEFAULT_API_BASE;
+}
+
+const API_BASE = normalizeApiBase(import.meta.env.VITE_API_BASE);
 const STORAGE_KEY = 'kmyc-battles';
 const VERSION_KEY = 'kmyc-data-version';
 const TIMESTAMP_KEY = 'kmyc-updated-at';
