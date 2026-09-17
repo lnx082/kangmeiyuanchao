@@ -23,18 +23,28 @@ npm run dev
 # → http://localhost:5173/
 ```
 
-> **无需注册任何服务即可运行！** 默认使用 ESRI 免费卫星底图。
+> **无需注册任何服务即可运行！** 默认使用 ESRI 免费卫星底图 + 平面地形。
 
-### 可选：配置 Cesium ion Token
-
-配置后可启用高精度 3D 地形：
+### 可选：配置 Cesium ion Token（启用官方影像 + 高精度 3D 地形）
 
 ```bash
-# 1. 免费注册 → https://ion.cesium.com/signup/
-# 2. 创建 .env 文件：
-echo VITE_CESIUM_TOKEN=pk.your_token_here > .env
-# 3. 重启 npm run dev
+# 1. 免费注册（只需邮箱，无需信用卡）→ https://ion.cesium.com/signup/
+# 2. 获取令牌 → https://ion.cesium.com/tokens
+#    复制 Default Token，或点 Create token 新建一个专用令牌
+#    真实令牌是一长串 JWT，以 eyJ 开头
+# 3. 写入 .env（参考 .env.example）：
+#    VITE_CESIUM_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxxxxx.xxxxxxxx
+# 4. 重启 npm run dev（Vite 只在启动时读 .env）
 ```
+
+| 是否配置 Token | 底图 | 地形 |
+| --- | --- | --- |
+| 不配置 | ESRI World Imagery（免费卫星图） | 椭球地形（平面） |
+| 配置后 | Cesium ion 官方卫星影像 | `Cesium.Terrain.fromWorldTerrain()` 高精度 3D 地形 |
+
+安全提示：令牌会随前端代码下发，任何访客都能看到，这是 Cesium 的常规用法。建议在 ion 后台
+创建专用令牌时限制 **Asset scopes**（只勾只读资源）与 **Allowed URLs**（只填你的域名），
+避免他人盗用。**不要**把 ion 后台的 Secret token 放进前端。
 
 ## 技术栈
 

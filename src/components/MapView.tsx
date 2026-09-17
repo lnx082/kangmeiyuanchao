@@ -6,8 +6,9 @@ import type { BattleCampaign } from '../types';
 // ============================================================
 // 🔑 Cesium ion Token
 //    免费注册: https://ion.cesium.com/signup/
-//    不配置 → 用 OpenStreetMap 底图（完全免费，无需注册）
-//    配置后 → 自动启用高精度 3D 地形 + 卫星影像
+//    获取令牌: https://ion.cesium.com/tokens （Default Token 或新建一个）
+//    不配置 → ESRI World Imagery 免费卫星底图 + 平面（椭球）地形，无需注册
+//    配置后 → Cesium ion 官方卫星影像 + 高精度 3D 世界地形
 // ============================================================
 const CESIUM_TOKEN = import.meta.env.VITE_CESIUM_TOKEN || '';
 // 真 Token 是 JWT 格式，以 eyJ 开头；占位符/空值不设置
@@ -149,20 +150,24 @@ export default function MapView({
     if (!containerRef.current) return;
 
     // hasValidToken: 顶层常量，表示配置了真正的 Cesium ion JWT Token
-    // 无 Token → OpenStreetMap（免费、可靠、同步加载）
-    // 有 Token → 不设 baseLayer，Cesium 自动使用 Ion 卫星图
+    // 无 Token → ESRI World Imagery（免费卫星底图，无需注册）
+    // 有 Token → 不设 baseLayer，Cesium 自动使用 Ion 官方卫星影像
+    // 备注：如需换回 OpenStreetMap，把下面的 provider 换成
+    //       new Cesium.OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/', maximumLevel: 18 })
     const baseLayer = hasValidToken
       ? undefined
       : new Cesium.ImageryLayer(
-          new Cesium.OpenStreetMapImageryProvider({
-            url: 'https://tile.openstreetmap.org/',
-            maximumLevel: 18,
+          new Cesium.UrlTemplateImageryProvider({
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            credit: 'Esri, Maxar, Earthstar Geographics',
+            maximumLevel: 19,
           }),
         );
 
     const viewer = new Cesium.Viewer(containerRef.current, {
       baseLayer,
-      terrainProvider: hasValidToken ? undefined : new Cesium.EllipsoidTerrainProvider(),
+      // 有 Token → 启用 Cesium ion 高精度世界地形；无 Token → 默认椭球地形（平面）
+      terrain: hasValidToken ? Cesium.Terrain.fromWorldTerrain() : undefined,
       animation: false,
       timeline: false,
       baseLayerPicker: false,
